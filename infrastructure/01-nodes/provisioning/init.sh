@@ -1,22 +1,20 @@
 #!/bin/sh
 #
-sudo apt update 
-for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
-sudo apt upgrade -y
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt install -qy jq ca-certificates curl gzip ipset screen vim bmon netdiag conntrack docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo apt update
-sudo cat > /etc/ssh/sshd_config.d/xlr8d_opts.conf << XLR8D_EOF
+apt update 
+for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do apt-get remove $pkg; done
+apt upgrade -y
+apt install -qy git jq ca-certificates curl gzip ipset screen vim bmon netdiag conntrack
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+apt update
+apt install -qy docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+cat > /etc/ssh/sshd_config.d/xlr8d_opts.conf << XLR8D_EOF
 Port 19198
 XLR8D_EOF
-DEFAULT_GW_INT=`sudo netstat -rn | grep "^0\.0\.0\.0" | grep -o "\(\w*\)$"`
-sudo cat > /etc/iptables.conf << XLR8D_EOF
+DEFAULT_GW_INT=`netstat -rn | grep "^0\.0\.0\.0" | grep -o "\(\w*\)$"`
+cat > /etc/iptables.conf << XLR8D_EOF
 *raw
 :PREROUTING ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
@@ -31,6 +29,7 @@ COMMIT
 :OUTPUT ACCEPT [0:0]
 :DE - [0:0]
 :permitICMP - [0:0]
+:DOCKER-USER - [0:0]
 -A INPUT -i lo -j ACCEPT
 -A INPUT -i $DEFAULT_GW_INT -p udp -m udp --sport 67 --dport 68 -j ACCEPT
 -A INPUT -i $DEFAULT_GW_INT -p tcp -m tcp --dport 19198 -j ACCEPT
@@ -42,6 +41,9 @@ COMMIT
 -A FORWARD -i $DEFAULT_GW_INT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 -A FORWARD -i $DEFAULT_GW_INT -m set --match-set allowed4hosts src -j ACCEPT
 -A FORWARD -j DE
+-A DOCKER-USER -i $DEFAULT_GW_INT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A DOCKER-USER -i $DEFAULT_GW_INT -m set --match-set allowed4hosts src -j ACCEPT
+-A DOCKER-USER -i $DEFAULT_GW_INT -j DE
 -A DE -p tcp -j REJECT --reject-with tcp-reset
 -A DE -p udp -j REJECT --reject-with icmp-port-unreachable
 -A DE -j REJECT --reject-with icmp-proto-unreachable
@@ -55,24 +57,34 @@ COMMIT
 COMMIT
 XLR8D_EOF
 
-sudo cat > /etc/ip6tables.conf << XLR8D_EOF
+cat > /etc/ip6tables.conf << XLR8D_EOF
 *filter
 :INPUT ACCEPT [0:0]
-:FORWARD DROP [0:0]
+:FORWARD ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
+:DOCKER-USER - [0:0]
+:DE - [0:0]
 -A INPUT -i lo -j ACCEPT
 -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 -A INPUT -s fe80::/8 -d ff00::/8 -i $DEFAULT_GW_INT -p icmpv6 -j ACCEPT
 -A INPUT -s fe80::/8 -i $DEFAULT_GW_INT -p icmpv6 -j ACCEPT
 -A INPUT -i $DEFAULT_GW_INT -m set --match-set allowed6hosts src -j ACCEPT
 -A INPUT -i $DEFAULT_GW_INT -p icmpv6 -j ACCEPT
--A INPUT -p tcp -j REJECT --reject-with tcp-reset
--A INPUT -p udp -j REJECT --reject-with icmp6-port-unreachable
--A INPUT -j REJECT --reject-with icmp6-addr-unreachable
+-A INPUT -j DE
+-A FORWARD -i lo -j ACCEPT
+-A FORWARD -i $DEFAULT_GW_INT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -i $DEFAULT_GW_INT -m set --match-set allowed6hosts src -j ACCEPT
+-A FORWARD -j DE
+-A DOCKER-USER -i $DEFAULT_GW_INT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A DOCKER-USER -i $DEFAULT_GW_INT -m set --match-set allowed6hosts src -j ACCEPT
+-A DOCKER-USER -i $DEFAULT_GW_INT -j DE
+-A DE -p tcp -j REJECT --reject-with tcp-reset
+-A DE -p udp -j REJECT --reject-with icmp6-port-unreachable
+-A DE -j REJECT --reject-with icmp6-addr-unreachable
 COMMIT
 XLR8D_EOF
 
-sudo cat > /etc/rc.local << XLR8D_EOF
+cat > /etc/rc.local << XLR8D_EOF
 #!/bin/sh
 #
 # IPSETs
@@ -113,8 +125,8 @@ sysctl -f
 exit 0
 #
 XLR8D_EOF
-sudo chmod +x /etc/rc.local
-sudo cat > /etc/sysctl.conf << XLR8D_EOF
+chmod +x /etc/rc.local
+cat > /etc/sysctl.conf << XLR8D_EOF
 net.ipv4.conf.default.rp_filter=1
 net.ipv4.conf.all.rp_filter=1
 net.ipv4.tcp_syncookies=1
@@ -140,8 +152,8 @@ net.ipv4.tcp_congestion_control=bbr
 net.nf_conntrack_max=262144
 net.core.somaxconn = 4096
 XLR8D_EOF
-sudo sysctl -f
-sudo cat >> /etc/screenrc << XLR8D_EOF
+sysctl -f
+cat >> /etc/screenrc << XLR8D_EOF
 screen -t notes 0 vim notes
 screen -t bash 1 bash
 screen -t bash 2 bash
@@ -154,4 +166,4 @@ screen -t sudo 8 sudo su -
 screen -t top 9 htop
 caption always "%{=s gk}%d.%m.%Y%{+b i.} %0c %{=s y.}%-w%{+bu i.}%n %t%{-}%+w%<"
 XLR8D_EOF
-sudo reboot
+reboot
