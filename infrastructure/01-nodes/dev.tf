@@ -29,9 +29,8 @@ resource "ah_cloud_server" "xlr8d-da-platform-dev" {
 
   provisioner "remote-exec" {
     inline = [
-      "hostnamectl hostname da-platform-dev",
       "chmod +x /tmp/init.sh",
-      "/tmp/init.sh",
+      "sudo /tmp/init.sh",
     ]
   }
 }
