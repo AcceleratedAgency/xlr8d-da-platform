@@ -173,5 +173,5 @@ chmod go-rwx /home/adminroot/.ssh/id_rsa
 mkdir /srv/da_platform
 chown -R adminroot /srv/da_platform
 usermod -aG docker adminroot
-su -l adminroot -c "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=accept-new' git clone --recurse-submodules git@github.com:AcceleratedAgency-com/xlr8d-da-platform.git /srv/da_platform"
+su -l adminroot -c "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=accept-new' git clone --recurse-submodules -b staging git@github.com:AcceleratedAgency-com/xlr8d-da-platform.git /srv/da_platform"
 reboot
