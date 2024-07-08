@@ -1,0 +1,7 @@
+**/*.rsa
+**/*.private
+.DS_Store
+**/.DS_Store
+**/node_modules/
+notes.txt
+tmp/

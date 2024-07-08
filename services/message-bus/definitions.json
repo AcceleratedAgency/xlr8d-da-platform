@@ -1,0 +1,68 @@
+{
+    "permissions": [
+      {
+        "user": "guest",
+        "vhost": "/",
+        "configure": "",
+        "write": "",
+        "read": ""
+      },
+      {
+        "user": "da_scheduler",
+        "vhost": "da_platform",
+        "configure": ".*",
+        "write": ".*",
+        "read": ".*"
+      },
+      {
+        "user": "da_subscriber",
+        "vhost": "da_platform",
+        "configure": ".*",
+        "write": ".*",
+        "read": ".*"
+      }
+    ],
+    "bindings": [],
+    "queues": [],
+    "parameters": [],
+    "policies": [],
+    "rabbitmq_version": "3.13.3",
+    "rabbit_version": "3.13.3",
+    "exchanges": [],
+    "users": [
+      {
+        "hashing_algorithm": "rabbit_password_hashing_sha256",
+        "limits": {},
+        "name": "guest",
+        "password_hash": "j2cKNdMCAH1xGoPYVhmXA29OOP/SccEITp7C3MfLh3y9TDuh",
+        "tags": []
+      },
+      {
+        "name": "da_scheduler",
+        "password_hash": "iTy5lZe7Q5bZhbO5g3gVREe1dfYoJZdDcTy0Z47kZbWKJSPq",
+        "hashing_algorithm": "rabbit_password_hashing_sha256",
+        "tags": []
+      },
+      {
+        "name": "da_subscriber",
+        "password_hash": "55466Pk8Xl8gYXqEoobEOuwXoihEFsFfT/B6pcVbjaucbBI6",
+        "hashing_algorithm": "rabbit_password_hashing_sha256",
+        "tags": []
+      }
+    ],
+    "topic_permissions": [],
+    "vhosts": [
+      {
+        "limits": [],
+        "metadata": { "description": "Default virtual host", "tags": [] },
+        "name": "/"
+      },
+      {
+        "limits": [],
+        "metadata": { "description": "DA platform message bus", "tags": [] },
+        "name": "da_platform"
+      }
+    ],
+    "global_parameters": []
+  }
+  

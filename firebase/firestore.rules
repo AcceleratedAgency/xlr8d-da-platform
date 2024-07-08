@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function userProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.token.email)).data;
+    }
+    match /profiles/{email} {
+      allow read: if userProfile().email == email;
+      allow write: if userProfile().isAdmin;
+    }
+    match /tasks_queue/{order} {
+      allow read: if userProfile().canRead;
+      allow update: if userProfile().canUpdate;
+      allow delete: if userProfile().canDelete;
+      allow write: if userProfile().isAdmin;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

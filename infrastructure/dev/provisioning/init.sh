@@ -166,4 +166,12 @@ screen -t sudo 8 sudo su -
 screen -t top 9 htop
 caption always "%{=s gk}%d.%m.%Y%{+b i.} %0c %{=s y.}%-w%{+bu i.}%n %t%{-}%+w%<"
 XLR8D_EOF
+mkdir /home/adminroot/.ssh
+mv /tmp/id_rsa /home/adminroot/.ssh/id_rsa
+chown -R adminroot /home/adminroot/.ssh
+chmod go-rwx /home/adminroot/.ssh/id_rsa
+mkdir /srv/da_platform
+chown -R adminroot /srv/da_platform
+usermod -aG docker adminroot
+su -l adminroot -c "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=accept-new' git clone --recurse-submodules git@github.com:AcceleratedAgency-com/xlr8d-da-platform.git /srv/da_platform"
 reboot
