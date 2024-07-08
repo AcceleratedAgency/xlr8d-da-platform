@@ -22,18 +22,36 @@ resource "ah_cloud_server" "xlr8d-da-platform-dev" {
     private_key = file("../keys/dev-infra.rsa")
     host     = self.ips[0].ip_address
   }
+  provisioner "remote-exec" {
+    inline = [
+      "mkdir -p /home/adminroot/.ssh"
+    ]
+  }
   provisioner "file" {
-    source      = "../keys/dev-infra.rsa"
-    destination = "/tmp/id_rsa"
+    source	= "../keys/repo-keys"
+    destination = "/home/adminroot"
+  }
+  provisioner "file" {
+    source      = "../keys/repo-keys/xlr8d-da-platform.pem"
+    destination = "/home/adminroot/.ssh/id_rsa"
   }
   provisioner "file" {
     source      = "./provisioning/init.sh"
     destination = "/tmp/init.sh"
   }
+    provisioner "file" {
+    source      = "./provisioning/services.sh"
+    destination = "/tmp/services.sh"
+  }
   provisioner "remote-exec" {
     inline = [
+      "chmod go-rwx /home/adminroot/.ssh/id_rsa",
+      "chmod go-rwx /home/adminroot/repo-keys/*", 
       "chmod +x /tmp/init.sh",
       "sudo /tmp/init.sh",
+      "chmod +x /tmp/services.sh",
+      "/tmp/services.sh",
+      "sudo reboot"
     ]
   }
 }
