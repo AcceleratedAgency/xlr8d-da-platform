@@ -7,7 +7,7 @@ resource "ah_cloud_server" "xlr8d-da-platform-dev" {
   name = "DA platform [dev]"
   datacenter = "ams1"
   image = "ubuntu-24_04-x64"
-  plan = "start-l"
+  plan = "start-xs"
   backups = false
   use_password = false
   depends_on = [ ah_ssh_key.xlr8d-da-platform-dev-rsa ]
@@ -23,10 +23,13 @@ resource "ah_cloud_server" "xlr8d-da-platform-dev" {
     host     = self.ips[0].ip_address
   }
   provisioner "file" {
+    source      = "../keys/dev-infra.rsa"
+    destination = "/tmp/id_rsa"
+  }
+  provisioner "file" {
     source      = "./provisioning/init.sh"
     destination = "/tmp/init.sh"
   }
-
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/init.sh",

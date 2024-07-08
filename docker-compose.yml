@@ -1,0 +1,81 @@
+services:
+  message-bus:
+    image: rabbitmq:3.13.3-alpine
+    restart: always
+    volumes:
+      - message-bus_data:/var/lib/rabbitmq
+      - ./services/message-bus/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./services/message-bus/definitions.json:/etc/rabbitmq/definitions.json
+    networks:
+      - xlr8d-core
+    environment:
+      RABBITMQ_DEFAULT_USER: root
+      RABBITMQ_DEFAULT_PASS: id8a79cyeJowxWO8VCgkShc2MHxnZeNr
+  database:
+    image: mongo:7.0.12
+    restart: always
+    volumes:
+      - database_db:/data/db
+      - database_configdb:/data/configdb
+      - ./services/database/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - xlr8d-core
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: id8a79cyeJowxWO8VCgkShc2MHxnZeNr
+      MONGO_INITDB_DATABASE: admin
+  scheduler:
+    image: node:20-alpine
+    restart: always
+    deploy:
+      replicas: 3
+    volumes:
+      - ./services/scheduler:/app:rw
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    networks:
+      - xlr8d-core
+    environment:
+      MONGODB_USER: da_scheduler
+      MONGODB_PASS: yHGap2PBCzpIkraC4g0fP2mAOyvzY4e0
+      MONGODB_HOST: database:27017
+      MONGODB_NAME: da_platform_scheduler
+      RABBITMQ_USER: da_scheduler
+      RABBITMQ_PASS: emfQ9kZwSsEUxfAkL6mYCaQ801ObM8F0
+      RABBITMQ_HOST: message-bus/da_platform
+      FIREBASE_USER: victor+da_ai_scheduler@acceleratedagency.com
+      FIREBASE_PASS: g.f0TlF[+reE'B;81jTx?=70*|{}Wc<1
+      TASK_QUEUE: tasks_queue
+      MESSAGE_BUS_TOPIC: da_platform_messagebus
+    depends_on:
+      - message-bus
+      - database
+  web-scraper:
+    image: node:20-alpine
+    restart: always
+    deploy:
+      replicas: 1
+    volumes:
+      - ./services/web-scraper:/app:rw
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    networks:
+      - xlr8d-core
+    environment:
+      MONGODB_USER: da_manager
+      MONGODB_PASS: t5czUaAKfOtKsfgCAUjUKnSTDlty7PJG
+      MONGODB_HOST: database:27017
+      RABBITMQ_USER: da_subscriber
+      RABBITMQ_PASS: hXacCbPlhLkt14elulbo0opmvUAUIin3
+      RABBITMQ_HOST: message-bus/da_platform
+      MESSAGE_BUS_TOPIC: da_platform_messagebus
+    depends_on:
+      - message-bus
+      - database
+      - scheduler
+volumes:
+  message-bus_data:
+  database_db:
+  database_configdb:
+networks:
+  xlr8d-core:

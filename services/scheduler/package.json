@@ -1,0 +1,17 @@
+{
+  "name": "da_platform_scheduler",
+  "version": "1.0.0",
+  "description": "Scheduler for DA platform",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "pontius",
+  "license": "MIT",
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "firebase": "^10.12.3",
+    "mongodb": "^6.8.0"
+  }
+}
