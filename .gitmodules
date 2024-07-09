@@ -1,12 +1,16 @@
 [submodule "services/web-scraper"]
 	path = services/web-scraper
 	url = git@github.com:AcceleratedAgency-com/xlr8d-web-scrapers.git
+	branch = staging
 [submodule "services/cdn"]
 	path = services/cdn
 	url = git@github.com:AcceleratedAgency-com/xlr8d-cdn-manager.git
+	branch = staging
 [submodule "services/da-crewai"]
 	path = services/da-crewai
 	url = git@github.com:AcceleratedAgency-com/xlr8d-da-crewai.git
+	branch = staging
 [submodule "services/message-classifier"]
 	path = services/message-classifier
 	url = git@github.com:AcceleratedAgency-com/xlr8d-da-message-classifier.git
+	branch = staging
