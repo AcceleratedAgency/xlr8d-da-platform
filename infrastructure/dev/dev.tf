@@ -7,7 +7,7 @@ resource "ah_cloud_server" "xlr8d-da-platform-dev" {
   name = "DA platform [dev]"
   datacenter = "ams1"
   image = "ubuntu-24_04-x64"
-  plan = "start-xs"
+  plan = "start-l"
   backups = false
   use_password = false
   depends_on = [ ah_ssh_key.xlr8d-da-platform-dev-rsa ]
