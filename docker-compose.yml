@@ -45,7 +45,8 @@ services:
       RABBITMQ_HOST: message-bus/da_platform
       FIREBASE_USER: victor+da_ai_scheduler@acceleratedagency.com
       FIREBASE_PASS: g.f0TlF[+reE'B;81jTx?=70*|{}Wc<1
-      TASK_QUEUE: tasks_queue
+      FIREBASE_TASK_QUEUE: tasks_queue
+      FIREBASE_REPORTS: reports
       MESSAGE_BUS_TOPIC: da_platform_messagebus
     depends_on:
       - message-bus
