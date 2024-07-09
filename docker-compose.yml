@@ -74,6 +74,30 @@ services:
       - message-bus
       - database
       - scheduler
+  message-classifier:
+    image: python:3.12-alpine
+    restart: always
+    deploy:
+      replicas: 3
+    volumes:
+      - ./services/message-classifier:/app:rw
+    working_dir: /app
+    command: sh init.sh
+    networks:
+      - xlr8d-core
+    environment:
+      MONGODB_USER: da_manager
+      MONGODB_PASS: t5czUaAKfOtKsfgCAUjUKnSTDlty7PJG
+      MONGODB_HOST: database:27017
+      RABBITMQ_USER: da_subscriber
+      RABBITMQ_PASS: hXacCbPlhLkt14elulbo0opmvUAUIin3
+      RABBITMQ_HOST: message-bus
+      RABBITMQ_VHOST: da_platform
+      MESSAGE_BUS_TOPIC: da_platform_messagebus
+    depends_on:
+      - message-bus
+      - database
+      - scheduler
 volumes:
   message-bus_data:
   database_db:
