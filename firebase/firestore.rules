@@ -15,6 +15,18 @@ service cloud.firestore {
       allow delete: if userProfile().canDelete;
       allow write: if userProfile().isAdmin;
     }
+    match /clients/{client}/reports/{report} {
+      allow read: if userProfile().canRead;
+      allow update: if userProfile().canUpdate;
+      allow delete: if userProfile().canDelete;
+      allow write: if userProfile().isAdmin;
+    }
+    match /clients/{client}/settings/{section} {
+      allow read: if userProfile().canRead;
+      allow update: if userProfile().canUpdate;
+      allow delete: if userProfile().canDelete;
+      allow write: if userProfile().isAdmin;
+    }
     match /{document=**} {
       allow read, write: if false;
     }
