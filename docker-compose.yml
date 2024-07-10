@@ -47,6 +47,7 @@ services:
       FIREBASE_PASS: g.f0TlF[+reE'B;81jTx?=70*|{}Wc<1
       FIREBASE_TASK_QUEUE: tasks_queue
       FIREBASE_REPORTS: reports
+      FIREBASE_SETTINGS: settings
       MESSAGE_BUS_TOPIC: da_platform_messagebus
     depends_on:
       - message-bus
