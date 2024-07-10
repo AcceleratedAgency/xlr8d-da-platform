@@ -1,0 +1,17 @@
+{
+    "name": "Reviews dumping",
+    "scraper": "BrowserStack",
+    "type": "dump",
+    "url": "https://www.trustpilot.com/review/maxbounty.com",
+    "clickPathBefore": [
+        "(sleep)"
+    ],
+    "clickPathAfter": [
+        "a[href*=\"href=\"/review/\"][name=\"pagination-button-next\"]"
+    ],
+    "dump": [
+        "[class*=\"reviewsContainer\"] article[class*=\"reviewCard\"]"
+    ],
+    "repeat": 30,
+    "last_check": null
+}
