@@ -171,9 +171,9 @@ async function configureMessageBus() {
         // TODO: update timestamp of client config document, to indicate "last check time"
         console.log(id);
         let docRef=doc(fb_firestore,`${FIREBASE_TASK_QUEUE}/${id}`);
-        getDoc(docRef).then(doc=>{
-            if (!doc.exists()) throw new Error(`Task ${id} not found in queue`);
-            let data=doc.data();
+        getDoc(docRef).then(snap=>{
+            if (!snap.exists()) throw new Error(`Task ${id} not found in queue`);
+            let data=snap.data();
             console.log(data);
             updateDoc(doc(fb_firestore,`${FIREBASE_SETTINGS}/${data.slug}/${QUEUE_TASK_TYPE.SCRAPING}/${data.config.id}`), {last_check: Date.now()}).catch(console.error);
             return deleteDoc(docRef).then(channel.ack.bind(channel,msg))

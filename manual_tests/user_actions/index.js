@@ -39,33 +39,86 @@ let actions = new Map([
         let c = await getDocs(query(collection(fb_firestore, FIREBASE_TASK_QUEUE),...q)) || [];
         c.forEach((doc) => console.log(doc.id, " => ", doc.data()));
     }],
-    ['submit_user_response_to', async function([id,user_response]){
+    ['submit_user_response_to', async function([
+        id,
+        user_response
+    ]){
         await firebaseAuth();
         if (!id || !(user_response||'').length) throw new Error('please provide 2 arguments: task_id and a response string');
         await updateDoc(doc(fb_firestore, `${FIREBASE_TASK_QUEUE}/${id}`),{user_response,require_user_response:!1})
     }],
-    ['emit_user_response_request_to',async function([id, content, require_user_response=!0,type=QUEUE_TASK_TYPE.CREWAI_MM_CHAT]){
+    ['emit_user_response_request_to',async function([
+        id,
+        content,
+        require_user_response=!0,
+        type=QUEUE_TASK_TYPE.CREWAI_MM_CHAT
+    ]){
         // can run only within infrastructure
         if (!id || !(user_response||'').length) throw new Error('please provide at least 2 arguments: task_id and a request string');
         if (!messageBus) messageBus=await messageBusInit();
         messageBus.getQueue(type).then(({send})=>send({id, content, require_user_response}));
     }],
-    // ['request_web_scraping',async function([client, slug, config_file="./web-scraping-config.json"]){
-    //     let config=JSON.parse(readFileSync(config_file));
-    //     await firebaseAuth();
-    //     let data = {
-    //         type: QUEUE_TASK_TYPE.SCRAPING,
-    //         status: "new",
-    //         client,
-    //         slug,
-    //         config
-    //     };
-    //     let task = doc(collection(fb_firestore, FIREBASE_TASK_QUEUE));
-    //     await setDoc(task, data);
-    //     console.log('web-scraping scheduled: ', task.id, "\n", data);
-    // }]
+    ['request_web_scraping',async function([
+        slug,
+        config_id
+    ]){
+        await firebaseAuth();
+        let clientRef = await getDoc(doc(fb_firestore, `${FIREBASE_SETTINGS}/${slug}`));
+        if (!clientRef.exists()) throw new Error(`No client found by slug:${slug}`);
+        let {client} = clientRef.data();
+        let configSnap = await getDoc(doc(fb_firestore, `${FIREBASE_SETTINGS}/${slug}/${QUEUE_TASK_TYPE.SCRAPING}/${config_id}`));
+        if (!configSnap.exists()) throw new Error(`No config found by ID:${id}`);
+        let data = {
+            type: QUEUE_TASK_TYPE.SCRAPING,
+            status: "new",
+            client,
+            slug,
+            config: configSnap.data( )
+        };
+        let task = doc(collection(fb_firestore, FIREBASE_TASK_QUEUE));
+        await setDoc(task, data);
+        console.log('web-scraping scheduled: ', task.id, "\n", data);
+    }],
+    ['add_web_scraping_config',async function([
+        slug,
+        config_file="./web-scraping-config.json"
+    ]){
+        let data=JSON.parse(readFileSync(config_file));
+        await firebaseAuth();
+        let client = await getDoc(doc(fb_firestore, `${FIREBASE_SETTINGS}/${slug}`));
+        if (!client.exists()) throw new Error(`No client found by slug:${slug}`);
+        let config = doc(collection(fb_firestore, `${FIREBASE_SETTINGS}/${slug}/${QUEUE_TASK_TYPE.SCRAPING}`));
+        await setDoc(config, data);
+        console.log('web-scraping config added: ', config.id, "\n", data);
+    }],
+    ['add_client_config',async function([
+        client,
+        slug=uuidv4()
+    ]){
+        await firebaseAuth();
+        let data = {
+            client,
+            slug
+        }
+        let ref = doc(fb_firestore, FIREBASE_SETTINGS, slug);
+        await setDoc(ref, data);
+        console.log('client config added: ', ref.id, "\n", data);
+    }],
+    ['list_clients',async function([client]){
+        await firebaseAuth();
+        let q = [];
+        if (client) q.push(where('client', '==', client));
+        let c = await getDocs(query(collection(fb_firestore, FIREBASE_SETTINGS), ...q)) || [];
+        c.forEach((doc) => console.log(doc.id, " => ", doc.data()));
+    }],
+    ['list_web_scraping_configs',async function([slug]){
+        await firebaseAuth();
+        let c = await getDocs(query(collection(fb_firestore, `${FIREBASE_SETTINGS}/${slug}/${QUEUE_TASK_TYPE.SCRAPING}`))) || [];
+        c.forEach((doc) => console.log(doc.id, " => ", doc.data()));
+    }]
 ]);
 //
+function uuidv4() {return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>(c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16))}
 const {readFileSync}=require('fs');
 const QUEUE_TASK_TYPE = {
     SCRAPING: 'web-scraping',
@@ -76,7 +129,7 @@ const QUEUE_TASK_TYPE = {
 }
 const { initializeApp } = require('firebase/app');
 const { getAuth, signInWithEmailAndPassword, onAuthStateChanged,signOut} = require('firebase/auth');
-const { getFirestore, collection, setDoc, updateDoc, doc, query, where, getDocs } = require('firebase/firestore');
+const { getFirestore, collection, setDoc, updateDoc, doc, query, where, getDocs, getDoc } = require('firebase/firestore');
 const {
     RABBITMQ_USER,
     RABBITMQ_PASS,
@@ -137,7 +190,7 @@ firebaseAuth().then(()=>{
                         break;
                     default:
                         console.log('Supported actions:\n');
-                        [...actions.keys()].forEach(key=>console.log(key));
+                        [...actions.keys()].sort().forEach(key=>console.log(key));
                         r();
                         break;
                 }
