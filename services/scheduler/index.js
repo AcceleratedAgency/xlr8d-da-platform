@@ -1,6 +1,6 @@
 const { initializeApp } = require('firebase/app');
 const { getAuth, signInWithEmailAndPassword, onAuthStateChanged } = require('firebase/auth');
-const { getFirestore, collection, onSnapshot, updateDoc, arrayUnion, doc } = require('firebase/firestore');
+const { getFirestore, collection, onSnapshot, updateDoc, arrayUnion, doc, getDoc } = require('firebase/firestore');
 const amqp = require('amqplib');
 const { MongoClient } = require('mongodb');
 const {
@@ -15,6 +15,7 @@ const {
     FIREBASE_PASS,
     FIREBASE_TASK_QUEUE,
     FIREBASE_REPORTS,
+    FIREBASE_SETTINGS,
     MESSAGE_BUS_TOPIC
 } = process.env;
 function debounce(f,w) {
@@ -37,7 +38,8 @@ const QUEUE_TASK_TYPE = {
     CLASSIFY: 'classification',
     CREWAI_MM: 'crewai_mm',
     CREWAI_MM_CHAT: 'crewai_mm_chat',
-    STORAGE: 'storage'
+    CDN: 'da_platform_cdn',
+    REMOVE_QUEUED: 'da_platform_remove_queued'
 }
 const QUEUE_TASK_STATUS = {
     NEW: 'new',
@@ -160,9 +162,22 @@ async function configureMessageBus() {
         .then(channel.ack.bind(channel,msg))
         .catch(console.error);
     })).catch(console.error);
-    await messageBus.subscribe(QUEUE_TASK_TYPE.SCRAPING+".finished").then(handle=>handle(({data})=>{
+    // await messageBus.getQueue(QUEUE_TASK_TYPE.REMOVE_QUEUED).then(({recv})=>recv(({id},channel,msg)=>{
+    //     deleteDoc(doc(fb_firestore,`${FIREBASE_TASK_QUEUE}/${id}`))
+    //     .then(channel.ack.bind(channel,msg))
+    //     .catch(console.error);
+    // })).catch(console.error);
+    await messageBus.getQueue(QUEUE_TASK_TYPE.SCRAPING+".finished").then(({recv})=>recv(({id},channel,msg)=>{
         // TODO: update timestamp of client config document, to indicate "last check time"
-        console.log(data);
+        console.log(id);
+        let docRef=doc(fb_firestore,`${FIREBASE_TASK_QUEUE}/${id}`);
+        getDoc(docRef).then(doc=>{
+            if (!doc.exists()) throw new Error(`Task ${id} not found in queue`);
+            let data=doc.data();
+            console.log(data);
+            updateDoc(doc(fb_firestore,`${FIREBASE_SETTINGS}/${data.slug}/${QUEUE_TASK_TYPE.SCRAPING}/${data.config.id}`), {last_check: Date.now()}).catch(console.error);
+            return deleteDoc(docRef).then(channel.ack.bind(channel,msg))
+        }).catch(console.error); 
     })).catch(console.error);
 }
 (async ()=>{

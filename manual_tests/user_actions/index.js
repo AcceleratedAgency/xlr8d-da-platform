@@ -1,12 +1,12 @@
 // supported actions
 let actions = new Map([
     ['request_report',async function([
-        type, // expected values: crewai_mm
         client,
         report,
         start_date=null,
         end_date=null,
-        prompt=null
+        prompt=null,
+        type=QUEUE_TASK_TYPE.CREWAI_MM
     ]) {
         await firebaseAuth();
         let data = {
@@ -45,11 +45,28 @@ let actions = new Map([
         await updateDoc(doc(fb_firestore, `${FIREBASE_TASK_QUEUE}/${id}`),{user_response,require_user_response:!1})
     }],
     ['emit_user_response_request_to',async function([id, content, require_user_response=!0,type=QUEUE_TASK_TYPE.CREWAI_MM_CHAT]){
+        // can run only within infrastructure
+        if (!id || !(user_response||'').length) throw new Error('please provide at least 2 arguments: task_id and a request string');
         if (!messageBus) messageBus=await messageBusInit();
         messageBus.getQueue(type).then(({send})=>send({id, content, require_user_response}));
-    }]
+    }],
+    // ['request_web_scraping',async function([client, slug, config_file="./web-scraping-config.json"]){
+    //     let config=JSON.parse(readFileSync(config_file));
+    //     await firebaseAuth();
+    //     let data = {
+    //         type: QUEUE_TASK_TYPE.SCRAPING,
+    //         status: "new",
+    //         client,
+    //         slug,
+    //         config
+    //     };
+    //     let task = doc(collection(fb_firestore, FIREBASE_TASK_QUEUE));
+    //     await setDoc(task, data);
+    //     console.log('web-scraping scheduled: ', task.id, "\n", data);
+    // }]
 ]);
 //
+const {readFileSync}=require('fs');
 const QUEUE_TASK_TYPE = {
     SCRAPING: 'web-scraping',
     CLASSIFY: 'classification',
@@ -59,7 +76,7 @@ const QUEUE_TASK_TYPE = {
 }
 const { initializeApp } = require('firebase/app');
 const { getAuth, signInWithEmailAndPassword, onAuthStateChanged,signOut} = require('firebase/auth');
-const { getFirestore, collection, onSnapshot, setDoc, updateDoc, arrayUnion, doc, query, where, getDocs } = require('firebase/firestore');
+const { getFirestore, collection, setDoc, updateDoc, doc, query, where, getDocs } = require('firebase/firestore');
 const {
     RABBITMQ_USER,
     RABBITMQ_PASS,

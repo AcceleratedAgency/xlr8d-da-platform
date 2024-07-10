@@ -21,7 +21,7 @@ service cloud.firestore {
       allow delete: if userProfile().canDelete;
       allow write: if userProfile().isAdmin;
     }
-    match /settings/{client}/{section} {
+    match /settings/{client}/{task_type}/{id} {
       allow read: if userProfile().canRead;
       allow update: if userProfile().canUpdate;
       allow delete: if userProfile().canDelete;
