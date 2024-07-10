@@ -155,7 +155,7 @@ async function configureMessageBus() {
     // pre-configure queues
     // for (let type of Object.values(QUEUE_TASK_TYPE)) await messageBus.getQueue(type).catch(console.error);
     // listeners
-    await messageBus.getQueue(QUEUE_TASK_TYPE.CREWAI_REVIEWS_CHAT).then(({recv})=>recv(({id,content,require_user_response},channel,msg)=>{
+    await messageBus.getQueue(QUEUE_TASK_TYPE.CREWAI_MM_CHAT).then(({recv})=>recv(({id,content,require_user_response},channel,msg)=>{
         updateDoc(doc(fb_firestore, `${FIREBASE_TASK_QUEUE}/${id}`),{chat: arrayUnion({timestamp: Date.now(),content}),...(require_user_response?{require_user_response}:{})})
         .then(channel.ack.bind(channel,msg))
         .catch(console.error);
