@@ -15,6 +15,7 @@ let actions = new Map([
             require_user_response: false,
             user_response: null,
             chat: [],
+            limit_users: [], // limit visibility of task for specific users
             client,
             report,
             start_date,
@@ -73,6 +74,7 @@ let actions = new Map([
             status: "new",
             client,
             slug,
+            limit_users: [], // limit visibility of task for specific users
             config: {...configSnap.data(), id:config_id}
         };
         let task = doc(collection(fb_firestore, FIREBASE_TASK_QUEUE));

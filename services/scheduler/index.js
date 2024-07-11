@@ -166,7 +166,7 @@ onAuthStateChanged(fb_auth, async user => {
                 case 'removed':
                     if (!await electProcessor(id+"-cancel")) break;
                     log('Cancelling task: ', id);
-                    messageBus.publish(data.type+".cancel", {id});
+                    messageBus.publish(data.type+".cancel."+id,data);
                     break;
                 default: break;
             }
