@@ -162,13 +162,12 @@ async function configureMessageBus() {
         .then(channel.ack.bind(channel,msg))
         .catch(console.error);
     })).catch(console.error);
-    // await messageBus.getQueue(QUEUE_TASK_TYPE.REMOVE_QUEUED).then(({recv})=>recv(({id},channel,msg)=>{
-    //     deleteDoc(doc(fb_firestore,`${FIREBASE_TASK_QUEUE}/${id}`))
-    //     .then(channel.ack.bind(channel,msg))
-    //     .catch(console.error);
-    // })).catch(console.error);
+    await messageBus.getQueue(QUEUE_TASK_TYPE.REMOVE_QUEUED).then(({recv})=>recv(({id},channel,msg)=>{
+        deleteDoc(doc(fb_firestore,`${FIREBASE_TASK_QUEUE}/${id}`))
+        .then(channel.ack.bind(channel,msg))
+        .catch(console.error);
+    })).catch(console.error);
     await messageBus.getQueue(QUEUE_TASK_TYPE.SCRAPING+".finished").then(({recv})=>recv(({id},channel,msg)=>{
-        // TODO: update timestamp of client config document, to indicate "last check time"
         console.log(id);
         let docRef=doc(fb_firestore,`${FIREBASE_TASK_QUEUE}/${id}`);
         getDoc(docRef).then(snap=>{

@@ -73,7 +73,7 @@ let actions = new Map([
             status: "new",
             client,
             slug,
-            config: configSnap.data( )
+            config: {...configSnap.data(), id:config_id}
         };
         let task = doc(collection(fb_firestore, FIREBASE_TASK_QUEUE));
         await setDoc(task, data);
