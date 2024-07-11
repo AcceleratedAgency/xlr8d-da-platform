@@ -67,7 +67,7 @@ let actions = new Map([
         if (!clientRef.exists()) throw new Error(`No client found by slug:${slug}`);
         let {client} = clientRef.data();
         let configSnap = await getDoc(doc(fb_firestore, `${FIREBASE_SETTINGS}/${slug}/${QUEUE_TASK_TYPE.SCRAPING}/${config_id}`));
-        if (!configSnap.exists()) throw new Error(`No config found by ID:${id}`);
+        if (!configSnap.exists()) throw new Error(`No config found by ID:${config_id}`);
         let data = {
             type: QUEUE_TASK_TYPE.SCRAPING,
             status: "new",
