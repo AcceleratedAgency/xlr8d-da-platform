@@ -121,7 +121,7 @@ let actions = new Map([
 function uuidv4() {return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>(c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16))}
 const {readFileSync}=require('fs');
 const QUEUE_TASK_TYPE = {
-    SCRAPING: 'web-scraping',
+    SCRAPING: 'web_scraping',
     CLASSIFY: 'classification',
     CREWAI_MM: 'crewai_mm',
     CREWAI_MM_CHAT: 'crewai_mm_chat',
