@@ -1,6 +1,6 @@
 const { initializeApp } = require('firebase/app');
 const { getAuth, signInWithEmailAndPassword, onAuthStateChanged } = require('firebase/auth');
-const { getFirestore, collection, onSnapshot, updateDoc, arrayUnion, doc, getDoc } = require('firebase/firestore');
+const { getFirestore, collection, onSnapshot, updateDoc, arrayUnion, doc, getDoc, deleteDoc } = require('firebase/firestore');
 const amqp = require('amqplib');
 const { MongoClient } = require('mongodb');
 const {
@@ -34,7 +34,7 @@ let messageBus = null;
 const mongo_client = new MongoClient(`mongodb://${MONGODB_USER}:${MONGODB_PASS}@${MONGODB_HOST}`);
 const PROCESS_ID = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>(c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)); //UUIDv4
 const QUEUE_TASK_TYPE = {
-    SCRAPING: 'web-scraping',
+    SCRAPING: 'web_scraping',
     CLASSIFY: 'classification',
     CREWAI_MM: 'crewai_mm',
     CREWAI_MM_CHAT: 'crewai_mm_chat',
@@ -60,7 +60,7 @@ async function messageBusInit() {
     while (!!wait--) {//wait for RabbitMQ
         try {
             rabbitmq_conn = await amqp.connect(`amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}`);
-            subscriptions.push(rabbitmq_conn.close.bind(rabbitmq_conn));
+            subscriptions.push(_=>rabbitmq_conn.close());
             break;
         } catch(e) { console.log('waiting for RabbitMQ\n', e)}
         await new Promise(r=>setTimeout(r,1000));
@@ -130,7 +130,7 @@ onAuthStateChanged(fb_auth, async user => {
     if (!user) return;
     await configureMessageBus().catch(console.error);
     console.log('\nReady to process tasks.\n');
-    subscriptions.push(onSnapshot(collection(fb_firestore, FIREBASE_TASK_QUEUE), async snapshot => {
+    let unsubscribe = onSnapshot(collection(fb_firestore, FIREBASE_TASK_QUEUE), async snapshot => {
         endProcessDelay();
         for (let {type, doc} of snapshot.docChanges()) {
             let id = doc.id;
@@ -150,7 +150,8 @@ onAuthStateChanged(fb_auth, async user => {
                 default: break;
             }
         }
-    },endProcess));
+    },endProcess);
+    subscriptions.push(_=>unsubscribe());
 });
 async function configureMessageBus() {
     messageBus = await messageBusInit();
