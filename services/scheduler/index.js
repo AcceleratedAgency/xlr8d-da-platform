@@ -16,8 +16,15 @@ const {
     FIREBASE_TASK_QUEUE,
     FIREBASE_REPORTS,
     FIREBASE_SETTINGS,
-    MESSAGE_BUS_TOPIC
+    MESSAGE_BUS_TOPIC,
+    ENABLE_DEBUG
 } = process.env;
+
+function log() {
+    if (!ENABLE_DEBUG) return;
+    console.log(...arguments);
+}
+
 function debounce(f,w) {
     let d=setTimeout(f,w);
     return ()=>{clearTimeout(d);d=setTimeout(f,w);}
@@ -37,7 +44,7 @@ const QUEUE_TASK_TYPE = {
     SCRAPING: 'web_scraping',
     CLASSIFY: 'classification',
     CREWAI_MM: 'crewai_mm',
-    CREWAI_MM_CHAT: 'crewai_mm_chat',
+    QUEUE_CHAT: 'queue_chat',
     CDN: 'da_platform_cdn',
     REMOVE_QUEUED: 'da_platform_remove_queued'
 }
@@ -50,7 +57,7 @@ const QUEUE_TASK_STATUS = {
 function electProcessor(_id) {
     return mongo_client.db(MONGODB_NAME).collection('elections').insertOne({_id,PROCESS_ID,timestamp:Date.now()})
     .then(()=>!0)
-    .catch(e=>e.code===11000?console.log(`Skipping handled task ${_id}`):console.error(e));
+    .catch(e=>e.code===11000?log(`Skipping handled task ${_id}`):console.error(e));
 }
 
 
@@ -62,7 +69,7 @@ async function messageBusInit() {
             rabbitmq_conn = await amqp.connect(`amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}`);
             subscriptions.push(_=>rabbitmq_conn.close());
             break;
-        } catch(e) { console.log('waiting for RabbitMQ\n', e)}
+        } catch(e) { log('waiting for RabbitMQ\n', e)}
         await new Promise(r=>setTimeout(r,1000));
     }
     let queues = new Map();
@@ -76,12 +83,17 @@ async function messageBusInit() {
             let channel = await rabbitmq_conn.createChannel();
             await channel.assertQueue(queue, {durable: !0});
             c = {
-                send: (msg,prop)=>channel.sendToQueue(queue,Buffer.from((typeof msg != typeof '')? JSON.stringify(msg):msg),prop),
+                send: (msg,prop)=>{
+                    log('Sending data to Queue:', queue, '\n', msg);
+                    return channel.sendToQueue(queue,Buffer.from((typeof msg != typeof '')? JSON.stringify(msg):msg),prop)
+                },
                 recv: (fn,prop={noAck:!1}) => {
                     channel.prefetch(1);
+                    log('Subscribed to Queue: ', queue);
                     return channel.consume(queue,msg=>{
                         let data=null;
-                        try {data=JSON.parse(msg.content.toString())} catch (e) {console.log('Error parsing JSON from: ', data)}
+                        try {data=JSON.parse(msg.content.toString())} catch (e) {log('Error parsing JSON from: ', data)}
+                        log('Recieved data in Queue:', queue, '\n', data);
                         fn(data,channel,msg);
                     },prop);
                 },
@@ -90,13 +102,18 @@ async function messageBusInit() {
             queues.set(queue,c);
             return c;
         }, 
-        publish: (key,msg)=>channel.publish(MESSAGE_BUS_TOPIC, key, Buffer.from((typeof msg != typeof '')? JSON.stringify(msg):msg)),
+        publish: (key,msg)=>{
+            log('Publishing data to Topic: ', MESSAGE_BUS_TOPIC, '\n', key, '\n', msg);
+            return channel.publish(MESSAGE_BUS_TOPIC, key, Buffer.from((typeof msg != typeof '')? JSON.stringify(msg):msg))
+        },
         subscribe: async (...keys)=>{
             let {queue} = await channel.assertQueue('',{exclusive: !0});
             for (let key of keys) channel.bindQueue(queue,MESSAGE_BUS_TOPIC,key);
+            log('Subscribed to the topic:',MESSAGE_BUS_TOPIC,'\n',key);
             return (fn,prop={noAck:!0}) => channel.consume(queue,msg=>{
                 let data=null;
-                try {data=JSON.parse(msg.content.toString())} catch (e) {console.log('Error parsing JSON from: ', data)}
+                try {data=JSON.parse(msg.content.toString())} catch (e) {log('Error parsing JSON from: ', data)}
+                log('Recieveddata in Topic',MESSAGE_BUS_TOPIC,'\n', msg.fields.routingKey,'\n', data);
                 fn({key:msg.fields.routingKey,data},channel,msg);
             },prop);
         }
@@ -108,15 +125,17 @@ async function scheduleNewTask(id,data,docRef){
         await processModifiedTask(id, data, docRef).catch(console.error);
         return;
     } //TODO: error handling
+    log('Scheduling new task: ', id, "\n", data);
     messageBus.getQueue(data.type).then(({send})=>send({...data,id})).catch(console.error);//TODO: remove unneded fields from data
     updateDoc(docRef, {status: QUEUE_TASK_STATUS.PROCESSING}).catch(console.error);
 }
 async function processModifiedTask(id, data, docRef) {
     if (typeof {} !== typeof data || !data.type || data.status != QUEUE_TASK_STATUS.PROCESSING) return; //TODO: error handling
     switch (!0) {
-        case (data.type === QUEUE_TASK_TYPE.CREWAI_MM && !!data?.user_response && (typeof [] === typeof data?.chat)): // handle user response to chat 
+        case (!!data?.user_response && (typeof [] === typeof data?.chat)): // handle user response to chat 
             if (!await electProcessor(`${id}-${data.chat?.length}`)) break;
             let msg = {timestamp: Date.now(), content: data.user_response};
+            log('sending response from user to: ',data.type+".chat."+id, '\n', msg)
             messageBus.publish(data.type+".chat."+id, msg);
             updateDoc(docRef, {chat: arrayUnion(msg), user_response: null}).catch(console.error);
             break;
@@ -128,6 +147,7 @@ const fb_auth = getAuth(fb_app);
 const fb_firestore = getFirestore(fb_app);
 onAuthStateChanged(fb_auth, async user => {
     if (!user) return;
+    log('Authenticated to Firebase');
     await configureMessageBus().catch(console.error);
     console.log('\nReady to process tasks.\n');
     let unsubscribe = onSnapshot(collection(fb_firestore, FIREBASE_TASK_QUEUE), async snapshot => {
@@ -145,6 +165,7 @@ onAuthStateChanged(fb_auth, async user => {
                     break;
                 case 'removed':
                     if (!await electProcessor(id+"-cancel")) break;
+                    log('Cancelling task: ', id);
                     messageBus.publish(data.type+".cancel", {id});
                     break;
                 default: break;
@@ -155,27 +176,30 @@ onAuthStateChanged(fb_auth, async user => {
 });
 async function configureMessageBus() {
     messageBus = await messageBusInit();
+    log('Connected to messageBus');
     // pre-configure queues
     // for (let type of Object.values(QUEUE_TASK_TYPE)) await messageBus.getQueue(type).catch(console.error);
     // listeners
-    await messageBus.getQueue(QUEUE_TASK_TYPE.CREWAI_MM_CHAT).then(({recv})=>recv(({id,content,require_user_response},channel,msg)=>{
+    await messageBus.getQueue(QUEUE_TASK_TYPE.QUEUE_CHAT).then(({recv})=>recv(({id,content,require_user_response},channel,msg)=>{
+        log('Updating reponse from Server to chat:',{id,content,require_user_response});
         updateDoc(doc(fb_firestore, `${FIREBASE_TASK_QUEUE}/${id}`),{chat: arrayUnion({timestamp: Date.now(),content}),...(require_user_response?{require_user_response}:{})})
         .then(channel.ack.bind(channel,msg))
         .catch(console.error);
     })).catch(console.error);
     await messageBus.getQueue(QUEUE_TASK_TYPE.REMOVE_QUEUED).then(({recv})=>recv(({id},channel,msg)=>{
+        log(`Removing Queued task "${id}", according to request from MessageBus`);
         deleteDoc(doc(fb_firestore,`${FIREBASE_TASK_QUEUE}/${id}`))
         .then(channel.ack.bind(channel,msg))
         .catch(console.error);
     })).catch(console.error);
     await messageBus.getQueue(QUEUE_TASK_TYPE.SCRAPING+".finished").then(({recv})=>recv(({id},channel,msg)=>{
-        console.log(id);
+        log(`Webscraping task Finished:`, id);
         let docRef=doc(fb_firestore,`${FIREBASE_TASK_QUEUE}/${id}`);
         getDoc(docRef).then(snap=>{
             if (!snap.exists()) throw new Error(`Task ${id} not found in queue`);
             let data=snap.data();
-            console.log(data);
             updateDoc(doc(fb_firestore,`${FIREBASE_SETTINGS}/${data.slug}/${QUEUE_TASK_TYPE.SCRAPING}/${data.config.id}`), {last_check: Date.now()}).catch(console.error);
+            log('Removing Queued task:',id,'\n',data);
             return deleteDoc(docRef).then(channel.ack.bind(channel,msg))
         }).catch(console.error); 
     })).catch(console.error);
@@ -188,7 +212,7 @@ async function configureMessageBus() {
             await mongo_client.connect();
             subscriptions.push(mongo_client.close.bind(mongo_client));
             break;
-        } catch(e) { console.log('waiting for MongoDB\n', e)}
+        } catch(e) { log('waiting for MongoDB\n', e)}
         await new Promise(r=>setTimeout(r,1000));
     }
     await mongo_client.db(MONGODB_NAME).collection('elections').deleteMany({ timestamp: { $lt: Date.now() - (5 * 60_000)}}); // cleanup old elections

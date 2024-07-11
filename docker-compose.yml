@@ -11,6 +11,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: root
       RABBITMQ_DEFAULT_PASS: id8a79cyeJowxWO8VCgkShc2MHxnZeNr
+      ENABLE_DEBUG: dev
   database:
     image: mongo:7.0.12
     restart: always
@@ -24,6 +25,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: id8a79cyeJowxWO8VCgkShc2MHxnZeNr
       MONGO_INITDB_DATABASE: admin
+      ENABLE_DEBUG: dev
   scheduler:
     image: node:20-alpine
     restart: always
@@ -49,6 +51,7 @@ services:
       FIREBASE_REPORTS: reports
       FIREBASE_SETTINGS: settings
       MESSAGE_BUS_TOPIC: da_platform_messagebus
+      ENABLE_DEBUG: dev
     depends_on:
       - message-bus
       - database
@@ -71,6 +74,7 @@ services:
       RABBITMQ_PASS: hXacCbPlhLkt14elulbo0opmvUAUIin3
       RABBITMQ_HOST: message-bus/da_platform
       MESSAGE_BUS_TOPIC: da_platform_messagebus
+      ENABLE_DEBUG: dev
     depends_on:
       - message-bus
       - database
@@ -95,6 +99,7 @@ services:
       RABBITMQ_HOST: message-bus
       RABBITMQ_VHOST: da_platform
       MESSAGE_BUS_TOPIC: da_platform_messagebus
+      ENABLE_DEBUG: dev
     depends_on:
       - message-bus
       - database

@@ -51,7 +51,7 @@ let actions = new Map([
         id,
         content,
         require_user_response=!0,
-        type=QUEUE_TASK_TYPE.CREWAI_MM_CHAT
+        type=QUEUE_TASK_TYPE.QUEUE_CHAT
     ]){
         // can run only within infrastructure
         if (!id || !(user_response||'').length) throw new Error('please provide at least 2 arguments: task_id and a request string');
@@ -124,8 +124,8 @@ const QUEUE_TASK_TYPE = {
     SCRAPING: 'web_scraping',
     CLASSIFY: 'classification',
     CREWAI_MM: 'crewai_mm',
-    CREWAI_MM_CHAT: 'crewai_mm_chat',
-    STORAGE: 'storage'
+    QUEUE_CHAT: 'queue_chat',
+    CDN: 'da_platform_cdn'
 }
 const { initializeApp } = require('firebase/app');
 const { getAuth, signInWithEmailAndPassword, onAuthStateChanged,signOut} = require('firebase/auth');
