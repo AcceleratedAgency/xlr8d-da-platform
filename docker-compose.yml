@@ -87,7 +87,7 @@ services:
     volumes:
       - ./services/message-classifier:/app:rw
     working_dir: /app
-    command: sh init.sh
+    command: sh da_platform.init.sh
     networks:
       - xlr8d-core
     environment:
