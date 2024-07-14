@@ -187,9 +187,10 @@ async function prepareVariables(run,die) {
     await messageBus.getQueue(PROCESS_ID,{exclusive:!0}).then(({recv})=>recv((data,ch,msg)=>{
         if (PROCESS_ID != msg.properties.correlationId || typeof {} !== typeof data) throw ch.close();
         Object.assign(service_config,data);
+        log('service_config updated', service_config);
         run();
         ch.close();
-    }),{noAck:!0}).catch(die);
+    },{noAck:!0})).catch(die);
     await messageBus.getQueue(`${MESSAGE_BUS_TOPIC}.config`).then(({send})=>send({CONFIG_KEY}, {replyTo: PROCESS_ID,correlationId: PROCESS_ID})).catch(die);
 }
 (async ()=>{

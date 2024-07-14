@@ -49,7 +49,7 @@ async function getConfig({CONFIG_KEY}) {return {...service_configs.get(CONFIG_KE
     }
     if (!rabbitmq_conn) throw new Error('No connection to RabbitMQ found');
     let channel = await rabbitmq_conn.createChannel();
-    await channel.assertQueue(`${MESSAGE_BUS_TOPIC}.config`, {durable: !1});
+    await channel.assertQueue(`${MESSAGE_BUS_TOPIC}.config`, {durable: !0});
     channel.prefetch(1);
     log('Ready to process config requests');
     await channel.consume(`${MESSAGE_BUS_TOPIC}.config`,msg=>{
