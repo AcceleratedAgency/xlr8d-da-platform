@@ -42,6 +42,7 @@ services:
       RABBITMQ_PASS: emfQ9kZwSsEUxfAkL6mYCaQ801ObM8F0
       RABBITMQ_HOST: message-bus/da_platform
       MESSAGE_BUS_TOPIC: da_platform_messagebus
+      ENVIRONMENT: dev
     depends_on:
       - message-bus
       - database
@@ -106,6 +107,31 @@ services:
       RABBITMQ_VHOST: da_platform
       MESSAGE_BUS_TOPIC: da_platform_messagebus
       CONFIG_KEY: message-classifier
+      ENABLE_DEBUG: dev
+    depends_on:
+      - message-bus
+      - database
+      - config-manager
+      - scheduler
+  da-crewai:
+    image: python:3.12-alpine
+    restart: always
+    deploy:
+      replicas: 3
+    volumes:
+      - ./services/da-crewai:/app:rw
+    working_dir: /app
+    command: sh da_platform.init.sh
+    networks:
+      - xlr8d-core
+    environment:
+      RABBITMQ_USER: da_subscriber
+      RABBITMQ_PASS: hXacCbPlhLkt14elulbo0opmvUAUIin3
+      RABBITMQ_HOST: message-bus
+      RABBITMQ_VHOST: da_platform
+      MESSAGE_BUS_TOPIC: da_platform_messagebus
+      CONFIG_KEY: da-crewai
+      ENABLE_DEBUG: dev
     depends_on:
       - message-bus
       - database
