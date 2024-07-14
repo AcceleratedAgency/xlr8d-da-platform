@@ -2,6 +2,7 @@
 let actions = new Map([
     ['request_report',async function([
         client,
+        slug,
         report,
         start_date=null,
         end_date=null,
@@ -12,11 +13,13 @@ let actions = new Map([
         let data = {
             type,
             status: "new",
+            created_at: Date.now(),
             require_user_response: false,
             user_response: null,
             chat: [],
             limit_users: [], // limit visibility of task for specific users
             client,
+            slug,
             report,
             start_date,
             end_date,

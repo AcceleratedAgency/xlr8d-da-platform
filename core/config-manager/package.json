@@ -1,0 +1,15 @@
+{
+  "name": "da_platform_configurator",
+  "version": "1.0.0",
+  "description": "Configurator for DA platform",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "pontius",
+  "license": "SEE LICENSE IN LICENSE",
+  "dependencies": {
+    "amqplib": "^0.10.4"
+  }
+}

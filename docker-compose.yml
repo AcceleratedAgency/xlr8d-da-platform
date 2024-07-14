@@ -4,8 +4,8 @@ services:
     restart: always
     volumes:
       - message-bus_data:/var/lib/rabbitmq
-      - ./services/message-bus/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
-      - ./services/message-bus/definitions.json:/etc/rabbitmq/definitions.json
+      - ./core/message-bus/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./core/message-bus/definitions.json:/etc/rabbitmq/definitions.json
     networks:
       - xlr8d-core
     environment:
@@ -18,7 +18,7 @@ services:
     volumes:
       - database_db:/data/db
       - database_configdb:/data/configdb
-      - ./services/database/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - ./core/database/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     networks:
       - xlr8d-core
     environment:
@@ -26,35 +26,46 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: id8a79cyeJowxWO8VCgkShc2MHxnZeNr
       MONGO_INITDB_DATABASE: admin
       ENABLE_DEBUG: dev
+  config-manager:
+    image: node:20-alpine
+    restart: always
+    deploy:
+      replicas: 3
+    volumes:
+      - ./core/config-manager:/app:rw
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    networks:
+      - xlr8d-core
+    environment:
+      RABBITMQ_USER: da_scheduler
+      RABBITMQ_PASS: emfQ9kZwSsEUxfAkL6mYCaQ801ObM8F0
+      RABBITMQ_HOST: message-bus/da_platform
+      MESSAGE_BUS_TOPIC: da_platform_messagebus
+    depends_on:
+      - message-bus
+      - database
   scheduler:
     image: node:20-alpine
     restart: always
     deploy:
       replicas: 3
     volumes:
-      - ./services/scheduler:/app:rw
+      - ./core/scheduler:/app:rw
     working_dir: /app
     command: sh -c "npm install && npm start"
     networks:
       - xlr8d-core
     environment:
-      MONGODB_USER: da_scheduler
-      MONGODB_PASS: yHGap2PBCzpIkraC4g0fP2mAOyvzY4e0
-      MONGODB_HOST: database:27017
-      MONGODB_NAME: da_platform_scheduler
       RABBITMQ_USER: da_scheduler
       RABBITMQ_PASS: emfQ9kZwSsEUxfAkL6mYCaQ801ObM8F0
       RABBITMQ_HOST: message-bus/da_platform
-      FIREBASE_USER: victor+da_ai_scheduler@acceleratedagency.com
-      FIREBASE_PASS: g.f0TlF[+reE'B;81jTx?=70*|{}Wc<1
-      FIREBASE_TASK_QUEUE: tasks_queue
-      FIREBASE_REPORTS: reports
-      FIREBASE_SETTINGS: settings
       MESSAGE_BUS_TOPIC: da_platform_messagebus
-      ENABLE_DEBUG: dev
+      CONFIG_KEY: scheduler
     depends_on:
       - message-bus
       - database
+      - config-manager
   web-scraper:
     image: node:20-alpine
     restart: always
@@ -67,17 +78,15 @@ services:
     networks:
       - xlr8d-core
     environment:
-      MONGODB_USER: da_manager
-      MONGODB_PASS: t5czUaAKfOtKsfgCAUjUKnSTDlty7PJG
-      MONGODB_HOST: database:27017
       RABBITMQ_USER: da_subscriber
       RABBITMQ_PASS: hXacCbPlhLkt14elulbo0opmvUAUIin3
       RABBITMQ_HOST: message-bus/da_platform
       MESSAGE_BUS_TOPIC: da_platform_messagebus
-      ENABLE_DEBUG: dev
+      CONFIG_KEY: web-scraper
     depends_on:
       - message-bus
       - database
+      - config-manager
       - scheduler
   message-classifier:
     image: python:3.12-alpine
@@ -91,18 +100,16 @@ services:
     networks:
       - xlr8d-core
     environment:
-      MONGODB_USER: da_manager
-      MONGODB_PASS: t5czUaAKfOtKsfgCAUjUKnSTDlty7PJG
-      MONGODB_HOST: database:27017
       RABBITMQ_USER: da_subscriber
       RABBITMQ_PASS: hXacCbPlhLkt14elulbo0opmvUAUIin3
       RABBITMQ_HOST: message-bus
       RABBITMQ_VHOST: da_platform
       MESSAGE_BUS_TOPIC: da_platform_messagebus
-      ENABLE_DEBUG: dev
+      CONFIG_KEY: message-classifier
     depends_on:
       - message-bus
       - database
+      - config-manager
       - scheduler
 volumes:
   message-bus_data:
