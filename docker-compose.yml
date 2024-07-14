@@ -43,6 +43,7 @@ services:
       RABBITMQ_HOST: message-bus/da_platform
       MESSAGE_BUS_TOPIC: da_platform_messagebus
       ENVIRONMENT: dev
+      ENABLE_DEBUG: dev
     depends_on:
       - message-bus
       - database
