@@ -33,7 +33,7 @@ const QUEUE_TASK_STATUS = {
     PROCESSING: 'processing',
     DONE: 'done'
 }
-const service_configs=new Map(readFileSync(`./service.config.${ENVIRONMENT}.json`));
+const service_configs=new Map(JSON.parse(readFileSync(`./service.config.${ENVIRONMENT}.json`)));
 async function getConfig({CONFIG_KEY}) {return {...service_configs.get(CONFIG_KEY), QUEUE_TASK_STATUS, QUEUE_TASK_TYPE, ENVIRONMENT, ENABLE_DEBUG}}
 
 (async function() {
