@@ -31,6 +31,8 @@
     ["da-crewai",{
         "MONGODB_USER": "da_manager",
         "MONGODB_PASS": "t5czUaAKfOtKsfgCAUjUKnSTDlty7PJG",
-        "MONGODB_HOST": "database:27017"
+        "MONGODB_HOST": "database:27017",
+        "CDN_UPLOAD_URL": "http://cdn-manager:3000/bucket/da-platform-media/upload/key1/key2/",
+        "CDN_UPLOAD_HEADER": {}
     }]
 ]
