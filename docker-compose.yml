@@ -102,6 +102,7 @@ services:
     networks:
       - xlr8d-core
     environment:
+      PYTHONUNBUFFERED: 1
       RABBITMQ_USER: da_subscriber
       RABBITMQ_PASS: hXacCbPlhLkt14elulbo0opmvUAUIin3
       RABBITMQ_HOST: message-bus
@@ -126,6 +127,7 @@ services:
     networks:
       - xlr8d-core
     environment:
+      PYTHONUNBUFFERED: 1
       RABBITMQ_USER: da_subscriber
       RABBITMQ_PASS: hXacCbPlhLkt14elulbo0opmvUAUIin3
       RABBITMQ_HOST: message-bus
@@ -138,6 +140,19 @@ services:
       - database
       - config-manager
       - scheduler
+  cdn-manager:
+    image: node:20-alpine
+    restart: always
+    deploy:
+      replicas: 3
+    volumes:
+      - ./services/cdn:/app:rw
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    networks:
+      - xlr8d-core
+    environment:
+      ENABLE_DEBUG: dev
 volumes:
   message-bus_data:
   database_db:

@@ -1,6 +1,6 @@
 const { initializeApp } = require('firebase/app');
 const { getAuth, signInWithEmailAndPassword, onAuthStateChanged } = require('firebase/auth');
-const { getFirestore, collection, onSnapshot, updateDoc, arrayUnion, doc, getDoc, deleteDoc } = require('firebase/firestore');
+const { getFirestore, collection, onSnapshot, updateDoc, arrayUnion, doc, getDoc, deleteDoc, setDoc } = require('firebase/firestore');
 const amqp = require('amqplib');
 const { MongoClient } = require('mongodb');
 const {
@@ -159,29 +159,54 @@ function initFirestore(){
     });
 }
 async function configureMessageBus() {
+    //
     await messageBus.getQueue(service_config.QUEUE_TASK_TYPE.QUEUE_CHAT).then(({recv})=>recv(({id,content,require_user_response},channel,msg)=>{
         log('Updating reponse from Server to chat:',{id,content,require_user_response});
         updateDoc(doc(fb_firestore, `${service_config.FIREBASE_TASK_QUEUE}/${id}`),{chat: arrayUnion({timestamp: Date.now(),content}),...(require_user_response?{require_user_response}:{})})
         .then(channel.ack.bind(channel,msg))
         .catch(console.error);
     })).catch(console.error);
+    //
     await messageBus.getQueue(service_config.QUEUE_TASK_TYPE.REMOVE_QUEUED).then(({recv})=>recv(({id},channel,msg)=>{
         log(`Removing Queued task "${id}", according to request from MessageBus`);
         deleteDoc(doc(fb_firestore,`${service_config.FIREBASE_TASK_QUEUE}/${id}`))
         .then(channel.ack.bind(channel,msg))
         .catch(console.error);
     })).catch(console.error);
+    //
     await messageBus.getQueue(service_config.QUEUE_TASK_TYPE.SCRAPING+".finished").then(({recv})=>recv(({id},channel,msg)=>{
         log(`Webscraping task Finished:`, id);
         let docRef=doc(fb_firestore,`${service_config.FIREBASE_TASK_QUEUE}/${id}`);
         getDoc(docRef).then(snap=>{
-            if (!snap.exists()) throw new Error(`Task ${id} not found in queue`);
+            if (!snap.exists()) {
+                channel.ack.bind(channel,msg)
+                throw new Error(`Task ${id} not found in queue`);
+            }
             let data=snap.data();
             updateDoc(doc(fb_firestore,`${service_config.FIREBASE_SETTINGS}/${data.slug}/${service_config.QUEUE_TASK_TYPE.SCRAPING}/${data.config.id}`), {last_check: Date.now()}).catch(console.error);
             log('Removing Queued task:',id,'\n',data);
             return deleteDoc(docRef).then(channel.ack.bind(channel,msg))
         }).catch(console.error); 
     })).catch(console.error);
+    //
+    await messageBus.getQueue(service_config.QUEUE_TASK_TYPE.CREWAI_MM+".finished").then(({recv})=>recv(({id,report},channel,msg)=>{
+        log(`CrewAI MM task Finished:`, id);
+        let docRef=doc(fb_firestore,`${service_config.FIREBASE_TASK_QUEUE}/${id}`);
+        getDoc(docRef).then(async snap=>{
+            if (!snap.exists()) {
+                channel.ack.bind(channel,msg)
+                throw new Error(`Task ${id} not found in queue`);
+            }
+            let data=snap.data();
+            setDoc(doc(fb_firestore,`${service_config.FIREBASE_REPORTS}/${data.slug}/${service_config.QUEUE_TASK_TYPE.CREWAI_MM}`,id),{
+                report,
+                history: data //TODO: cleanup unnneded properties
+            }).catch(console.error);
+            log('Removing Queued task:',id,'\n',data);
+            return deleteDoc(docRef).then(channel.ack.bind(channel,msg))
+        }).catch(console.error); 
+    })).catch(console.error);
+    //
 }
 async function prepareVariables(run,die) {
     await messageBus.getQueue(PROCESS_ID,{exclusive:!0}).then(({recv})=>recv((data,ch,msg)=>{

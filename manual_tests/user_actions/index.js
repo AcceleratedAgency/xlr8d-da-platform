@@ -1,9 +1,9 @@
 // supported actions
 let actions = new Map([
     ['request_report',async function([
-        client,
         slug,
         report,
+        client="Test Client Name",
         start_date=null,
         end_date=null,
         prompt=null,
@@ -36,7 +36,7 @@ let actions = new Map([
         let c = await getDocs(query(collection(fb_firestore, FIREBASE_TASK_QUEUE), ...q)) || [];
         c.forEach((doc) => console.log(doc.id, " => ", doc.data()));
     }],
-    ['list_pending_reponse',async function([type]){
+    ['list_pending_response',async function([type]){
         await firebaseAuth();
         let q = [where('require_user_response', '==', !0)];
         if (type) q.push(where('type', '==', type));
@@ -162,6 +162,9 @@ function logout() {
     for (let unsubscribe of subscriptions) try {unsubscribe()}catch(e){console.error(e)}
     return signOut(fb_auth).finally(process.exit);
 }
+//
+let messageBus=null;
+let subscriptions=[];
 // process single request if provided by inline arguments
 if (action) return (async ()=>actions.get(action)(args).finally(logout))().catch(e=>console.log("unsupported action:", action, "\n", e));
 // else start interactive terminal
@@ -203,8 +206,6 @@ firebaseAuth().then(()=>{
         });
     })();
 }).catch(console.error);
-let messageBus=null;
-let subscriptions=[];
 async function messageBusInit() {
     const amqp = require('amqplib');
     let rabbitmq_conn=null;
