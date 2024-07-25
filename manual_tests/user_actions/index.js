@@ -62,6 +62,36 @@ let actions = new Map([
         if (!messageBus) messageBus=await messageBusInit();
         messageBus.getQueue(type).then(({send})=>send({id, content, require_user_response}));
     }],
+    ['emit_classification_task',async function([
+        db_doc_id='66a0e0cb5bc6690b99a1fbca',
+        db_collection='web_scraping',
+        slug='client_2'
+    ]){
+        // can run only within infrastructure
+        if (!messageBus) messageBus=await messageBusInit();
+        messageBus.getQueue(type).then(({send})=>send( {
+            client: 'Client #2',
+            limit_users: [],
+            config: {
+              name: 'Reviews dumping',
+              last_check: 1721819039649,
+              id: 'OWAr0tuEgUnatOWMrDnE',
+              clickPathAfter: [ 'a[href*="/review/"][name="pagination-button-next"]' ],
+              repeat: 2,
+              dump: [ '[class*="reviewsContainer"] article[class*="reviewCard"]' ],
+              clickPathBefore: [ '(sleep)', '[id*="onetrust-accept"]' ],
+              type: 'dump',
+              url: 'https://www.trustpilot.com/review/maxbounty.com',
+              scraper: 'BrowserStack'
+            },
+            status: 'new',
+            type: 'web_scraping',
+            slug,
+            id: 'TiKeVA09vrY6qejSc94z',
+            db_collection,
+            db_doc_id
+        }));
+    }],
     ['request_web_scraping',async function([
         slug,
         config_id
