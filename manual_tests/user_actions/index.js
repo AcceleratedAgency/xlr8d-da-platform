@@ -64,12 +64,13 @@ let actions = new Map([
     }],
     ['emit_classification_task',async function([
         db_doc_id='66a0e0cb5bc6690b99a1fbca',
-        db_collection='web_scraping',
-        slug='client_2'
+        slug='client_2',
+        db_collection=QUEUE_TASK_TYPE.SCRAPING,
+        type=QUEUE_TASK_TYPE.SCRAPING
     ]){
         // can run only within infrastructure
         if (!messageBus) messageBus=await messageBusInit();
-        messageBus.getQueue(type).then(({send})=>send( {
+        let task = {
             client: 'Client #2',
             limit_users: [],
             config: {
@@ -85,12 +86,14 @@ let actions = new Map([
               scraper: 'BrowserStack'
             },
             status: 'new',
-            type: 'web_scraping',
+            type,
             slug,
             id: 'TiKeVA09vrY6qejSc94z',
             db_collection,
             db_doc_id
-        }));
+        };
+        messageBus.getQueue(type).then(({send})=>send(task));
+        console.log("Task Emited:\n", task);
     }],
     ['request_web_scraping',async function([
         slug,
