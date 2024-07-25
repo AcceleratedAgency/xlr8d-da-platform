@@ -66,7 +66,7 @@ let actions = new Map([
         db_doc_id='66a0e0cb5bc6690b99a1fbca',
         slug='client_2',
         db_collection=QUEUE_TASK_TYPE.SCRAPING,
-        type=QUEUE_TASK_TYPE.SCRAPING
+        type=QUEUE_TASK_TYPE.CLASSIFY
     ]){
         // can run only within infrastructure
         if (!messageBus) messageBus=await messageBusInit();
@@ -86,7 +86,7 @@ let actions = new Map([
               scraper: 'BrowserStack'
             },
             status: 'new',
-            type,
+            type: QUEUE_TASK_TYPE.SCRAPING,
             slug,
             id: 'TiKeVA09vrY6qejSc94z',
             db_collection,
