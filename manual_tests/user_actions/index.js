@@ -95,6 +95,16 @@ let actions = new Map([
         messageBus.getQueue(type).then(({send})=>send(task));
         console.log("Task Emited:\n", task);
     }],
+    ['emit_task',async function([
+        queue,
+        task_file="./message-bus-task.json"
+    ]){
+        // can run only within infrastructure
+        if (!messageBus) messageBus=await messageBusInit();
+        let task = JSON.parse(readFileSync(task_file));;
+        messageBus.getQueue(queue).then(({send})=>send(task));
+        console.log("Task Emited:\n", task);
+    }],
     ['request_web_scraping',async function([
         slug,
         config_id
