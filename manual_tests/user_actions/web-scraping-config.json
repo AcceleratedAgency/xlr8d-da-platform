@@ -7,11 +7,11 @@
         "(sleep)",
         "[id*=\"onetrust-accept\"]"
     ],
-    "clickPathAfter": [
-        "a[href*=\"/review/\"][name=\"pagination-button-next\"]"
-    ],
     "dump": [
         "[class*=\"reviewsContainer\"] article[class*=\"reviewCard\"]"
+    ],
+    "clickPathAfter": [
+        "a[href*=\"/review/\"][name=\"pagination-button-next\"]"
     ],
     "repeat": 2,
     "last_check": null
