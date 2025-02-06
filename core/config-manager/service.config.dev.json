@@ -1,9 +1,11 @@
 [
     ["scheduler", {
-        "MONGODB_USER": "da_scheduler",
-        "MONGODB_PASS": "yHGap2PBCzpIkraC4g0fP2mAOyvzY4e0",
-        "MONGODB_HOST": "database:27017",
+        "SOCKET_PORT" :3000,
+        "MONGODB_URI": "mongodb+srv://doadmin:H1i95x62t4WK37Fg@codebase-data-processing-f1801b66.mongo.ondigitalocean.com/admin?tls=true&authSource=admin",
         "MONGODB_NAME": "da_platform_scheduler",
+        "MONGODB_TASK_QUEUE": "tasks_queue",
+        "MONGODB_REPORTS": "reports",
+        "MONGODB_SETTINGS": "settings",
         "FIREBASE_USER": "victor+da_ai_scheduler@acceleratedagency.com",
         "FIREBASE_PASS": "g.f0TlF[+reE'B;81jTx?=70*|{}Wc<1",
         "FIREBASE_TASK_QUEUE": "tasks_queue",
@@ -19,20 +21,16 @@
         }
     }],
     ["web-scraper", {
-        "MONGODB_USER": "da_manager",
-        "MONGODB_PASS": "t5czUaAKfOtKsfgCAUjUKnSTDlty7PJG",
-        "MONGODB_HOST": "database:27017"
+        "MONGODB_URI": "mongodb+srv://doadmin:H1i95x62t4WK37Fg@codebase-data-processing-f1801b66.mongo.ondigitalocean.com/admin?tls=true&authSource=admin"
     }],
-    ["message-classifier",{
-        "MONGODB_USER": "da_manager",
-        "MONGODB_PASS": "t5czUaAKfOtKsfgCAUjUKnSTDlty7PJG",
-        "MONGODB_HOST": "database:27017"
+    ["message-classifier", {
+        "MONGODB_URI": "mongodb+srv://doadmin:H1i95x62t4WK37Fg@codebase-data-processing-f1801b66.mongo.ondigitalocean.com/admin?tls=true&authSource=admin"
     }],
-    ["da-crewai",{
-        "MONGODB_USER": "da_manager",
-        "MONGODB_PASS": "t5czUaAKfOtKsfgCAUjUKnSTDlty7PJG",
-        "MONGODB_HOST": "database:27017",
+    ["da-crewai", {
+        "MONGODB_URI": "mongodb+srv://doadmin:H1i95x62t4WK37Fg@codebase-data-processing-f1801b66.mongo.ondigitalocean.com/admin?tls=true&authSource=admin",
         "CDN_UPLOAD_URL": "http://cdn-manager:3000/bucket/da-platform-media/upload/key1/key2/",
         "CDN_UPLOAD_HEADER": {}
     }]
 ]
+
+
