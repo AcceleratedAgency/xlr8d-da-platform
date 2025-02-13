@@ -1,6 +1,5 @@
 const amqp = require("amqplib");
-const { Server } = require("socket.io");
-const http = require("http");
+const Server = require("socket.io-client");
 const { MongoClient, ObjectId } = require("mongodb");
 
 const {
@@ -15,12 +14,7 @@ let service_config = {};
 let messageBus = null;
 let mongo_client = null;
 
-const server = http.createServer();
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-  },
-});
+const io = Server(service_config.SOCKET_PORT);
 const PROCESS_ID = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
   (
     c ^
@@ -28,12 +22,6 @@ const PROCESS_ID = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
   ).toString(16)
 ); //UUIDv4
 
-function log() {
-  if (!ENABLE_DEBUG && !service_config.ENABLE_DEBUG) return;
-  console.log(...arguments);
-}
-
-const subscriptions = [];
 function debounce(f, w) {
   let d = setTimeout(f, w);
   return () => {
@@ -41,6 +29,13 @@ function debounce(f, w) {
     d = setTimeout(f, w);
   };
 }
+let endProcessDelay = debounce(endProcess, 36e5);
+function log() {
+  if (!ENABLE_DEBUG && !service_config.ENABLE_DEBUG) return;
+  console.log(...arguments);
+}
+
+const subscriptions = [];
 function endProcess(msg) {
   console.warn(msg);
   for (let unsubscribe of subscriptions)
@@ -52,41 +47,44 @@ function endProcess(msg) {
   console.warn("Exiting in 60sec");
   setTimeout(() => process.exit(), 6e4);
 }
-let endProcessDelay = debounce(endProcess, 36e5);
 
 function electProcessor(_id) {
   return mongo_client
     .db(service_config.MONGODB_NAME)
     .collection("elections")
-    .insertOne({ _id, PROCESS_ID, timestamp: Date.now() })
-    .then(() => !0)
-    .catch((e) =>
-      e.code === 11000 ? log(`Skipping handled task ${_id}`) : console.error(e)
-    );
+    .updateOne(
+      { _id },
+      { $set: { PROCESS_ID, timestamp: Date.now() } },
+      { upsert: true }
+    )
+    .then(() => true)
+    .catch((e) => console.error(e));
 }
+
 // connectivity for message bus
 async function messageBusInit() {
   let rabbitmq_conn = null;
-  let wait = 200;
-  while (!!wait--) {
-    //wait for RabbitMQ
+  let wait = 200; // Retry 200 times before failing
+  while (wait--) {
     try {
       rabbitmq_conn = await amqp.connect(
         `amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}`
       );
       subscriptions.push((_) => rabbitmq_conn.close());
-      break;
+      break; // Successfully connected, break out of loop
     } catch (e) {
-      log("waiting for RabbitMQ\n", e);
+      log(`Attempt ${200 - wait} - Waiting for RabbitMQ:`, e.message);
     }
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for 2 seconds before retrying
+  }
+  if (!rabbitmq_conn) {
+    throw new Error("Unable to connect to RabbitMQ after multiple attempts");
   }
   let queues = new Map();
-  if (!rabbitmq_conn) throw new Error("No connection to RabbitMQ found");
   let channel = await rabbitmq_conn.createChannel();
-  await channel.assertExchange(MESSAGE_BUS_TOPIC, "topic", { durable: !1 });
+  await channel.assertExchange(MESSAGE_BUS_TOPIC, "topic", { durable: false });
   return {
-    getQueue: async (queue, prop = { durable: !0 }) => {
+    getQueue: async (queue, prop = { durable: true }) => {
       let c = queues.get(queue);
       if (c) return c;
       let channel = await rabbitmq_conn.createChannel();
@@ -96,13 +94,13 @@ async function messageBusInit() {
           log("Sending data to Queue:", queue, "\n", msg);
           return channel.sendToQueue(
             queue,
-            Buffer.from(typeof msg != typeof "" ? JSON.stringify(msg) : msg),
+            Buffer.from(typeof msg !== typeof "" ? JSON.stringify(msg) : msg),
             prop
           );
         },
-        recv: (fn, prop = { noAck: !1 }) => {
+        recv: (fn, prop = { noAck: false }) => {
           channel.prefetch(1);
-          log("Subscribed to Queue: ", queue);
+          log("Subscribed to Queue:", queue);
           return channel.consume(
             queue,
             (msg) => {
@@ -112,7 +110,7 @@ async function messageBusInit() {
               } catch (e) {
                 log("Error parsing JSON from: ", data);
               }
-              log("Recieved data in Queue:", queue, "\n", data);
+              log("Received data in Queue:", queue, "\n", data);
               fn(data, channel, msg);
             },
             prop
@@ -124,25 +122,18 @@ async function messageBusInit() {
       return c;
     },
     publish: (key, msg) => {
-      log(
-        "Publishing data to Topic: ",
-        MESSAGE_BUS_TOPIC,
-        "\n",
-        key,
-        "\n",
-        msg
-      );
+      log("Publishing data to Topic:", MESSAGE_BUS_TOPIC, "\n", key, "\n", msg);
       return channel.publish(
         MESSAGE_BUS_TOPIC,
         key,
-        Buffer.from(typeof msg != typeof "" ? JSON.stringify(msg) : msg)
+        Buffer.from(typeof msg !== typeof "" ? JSON.stringify(msg) : msg)
       );
     },
     subscribe: async (...keys) => {
-      let { queue } = await channel.assertQueue("", { exclusive: !0 });
+      let { queue } = await channel.assertQueue("", { exclusive: true });
       for (let key of keys) channel.bindQueue(queue, MESSAGE_BUS_TOPIC, key);
       log("Subscribed to the topic:", MESSAGE_BUS_TOPIC, "\n", keys);
-      return (fn, prop = { noAck: !0 }) =>
+      return (fn, prop = { noAck: false }) =>
         channel.consume(
           queue,
           (msg) => {
@@ -153,7 +144,7 @@ async function messageBusInit() {
               log("Error parsing JSON from: ", data);
             }
             log(
-              "Recieved data in Topic",
+              "Received data in Topic",
               MESSAGE_BUS_TOPIC,
               "\n",
               msg.fields.routingKey,
@@ -236,7 +227,6 @@ async function processModifiedTask(id, data, collection) {
 }
 // used to notifying about process
 async function configureMessageBus() {
-  //
   await messageBus
     .getQueue(service_config.QUEUE_TASK_TYPE.QUEUE_CHAT)
     .then(({ recv }) =>
@@ -260,7 +250,6 @@ async function configureMessageBus() {
       })
     )
     .catch(console.error);
-  //
   await messageBus
     .getQueue(service_config.QUEUE_TASK_TYPE.REMOVE_QUEUED)
     .then(({ recv }) =>
@@ -269,6 +258,7 @@ async function configureMessageBus() {
           `Removing Queued task "${id}", according to request from MessageBus`
         );
         const taskQueueCollection = mongo_client
+
           .db(service_config.MONGODB_NAME)
           .collection(service_config.MONGODB_TASK_QUEUE);
         await taskQueueCollection.deleteOne({ _id: new ObjectId(id) });
@@ -348,6 +338,64 @@ async function configureMessageBus() {
     .catch(console.error);
 }
 
+// check and exicute schduled task for weekly or monthly
+async function scheduleScrapingForClients() {
+  const now = new Date();
+  const currentDay = now.getDay();
+  const currentDate = now.getDate();
+
+  try {
+    const db = mongo_client.db(service_config.MONGODB_NAME);
+    const settingsCollection = db.collection(service_config.MONGODB_SETTINGS);
+    const taskQueueCollection = db.collection(
+      service_config.MONGODB_TASK_QUEUE
+    );
+    const clients = await settingsCollection.find({}).toArray();
+    if (!clients.length) {
+      console.warn("No clients found for scheduling.");
+      return;
+    }
+
+    for (let client of clients) {
+      const { _id, scraping_frequency, created_at } = client;
+
+      if (!created_at || !scraping_frequency) {
+        console.warn(`Skipping client ${_id} due to missing schedule info.`);
+        continue;
+      }
+      const scheduledAt = new Date(created_at);
+      const scheduledDay = scheduledAt.getDay();
+      const scheduledDate = scheduledAt.getDate();
+
+      let shouldTrigger = false;
+      if (scraping_frequency === "weekly" && scheduledDay === currentDay) {
+        shouldTrigger = true;
+      } else if (
+        scraping_frequency === "monthly" &&
+        scheduledDate === currentDate
+      ) {
+        shouldTrigger = true;
+      }
+
+      if (shouldTrigger) {
+        console.log(`Scheduled scraping for client ${_id}`);
+        await scheduleNewTask(_id, client, taskQueueCollection).catch(
+          console.error
+        );
+      } else {
+        console.log(`Client ${_id} not scheduled at this time.`);
+      }
+    }
+  } catch (error) {
+    console.error("Error in scheduling scraping tasks:", error);
+  }
+}
+
+setInterval(async () => {
+  console.log("Checking scheduled tasks...");
+  await scheduleScrapingForClients();
+}, 24 * 60 * 60 * 1000); //Interval for 1 day(24 hours in milliseconds)
+
 async function prepareVariables(run, die) {
   await messageBus
     .getQueue(PROCESS_ID, { exclusive: !0 })
@@ -378,12 +426,6 @@ async function prepareVariables(run, die) {
 // connectivity with socket.io
 function initSocketIO(taskQueueCollection) {
   configureMessageBus();
-  server.listen(service_config.SOCKET_PORT, () => {
-    console.log(
-      `Socket.io server running on port ${service_config.SOCKET_PORT}`
-    );
-  });
-
   io.on("connection", (socket) => {
     socket.on("task_queue_updated", async () => {
       const tasks = await taskQueueCollection.find().toArray();
@@ -391,12 +433,11 @@ function initSocketIO(taskQueueCollection) {
       socket.emit("task_queue_updated", tasks);
     });
   });
-
+  endProcessDelay();
   const changeStream = taskQueueCollection.watch();
 
   changeStream.on("change", async (change) => {
     let { operationType, fullDocument, documentKey } = change;
-
     let id = documentKey._id;
     let type = fullDocument?.type;
     switch (operationType) {
@@ -404,10 +445,12 @@ function initSocketIO(taskQueueCollection) {
         await scheduleNewTask(id, fullDocument, taskQueueCollection).catch(
           console.error
         );
+
         io.emit("task_queue_updated", fullDocument);
         break;
       case "update":
         await processModifiedTask(id, fullDocument).catch(console.error);
+
         io.emit("task_queue_updated", fullDocument);
         break;
       case "delete":
@@ -417,6 +460,12 @@ function initSocketIO(taskQueueCollection) {
           fullDocument ? fullDocument?.type : type + ".cancel." + id,
           fullDocument
         );
+
+        io.emit("task_status_updated", {
+          id,
+          status: fullDocument?.status,
+          response: true,
+        });
         io.emit("task_queue_updated", { id, deleted: true });
         break;
       default:
@@ -442,18 +491,17 @@ function initSocketIO(taskQueueCollection) {
     } catch (e) {
       log("waiting for MongoDB\n", e);
     }
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 2000));
   }
 
   const db = mongo_client.db(service_config.MONGODB_NAME);
   const electionsCollection = db.collection("elections");
   const taskQueueCollection = db.collection(service_config.MONGODB_TASK_QUEUE);
-
   await electionsCollection.deleteMany({
     timestamp: { $lt: Date.now() - 5 * 60_000 },
   });
-
   initSocketIO(taskQueueCollection);
+  scheduleScrapingForClients();
 })().catch(endProcess);
 // --------------------------------------------old code---------------------------------------
 // const { initializeApp } = require("firebase/app");

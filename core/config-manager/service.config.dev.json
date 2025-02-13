@@ -1,6 +1,6 @@
 [
     ["scheduler", {
-        "SOCKET_PORT" :3000,
+        "SOCKET_PORT" :4022,
         "MONGODB_URI": "mongodb+srv://doadmin:H1i95x62t4WK37Fg@codebase-data-processing-f1801b66.mongo.ondigitalocean.com/admin?tls=true&authSource=admin",
         "MONGODB_NAME": "da_platform_scheduler",
         "MONGODB_TASK_QUEUE": "tasks_queue",

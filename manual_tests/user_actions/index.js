@@ -1,9 +1,9 @@
 const { MongoClient } = require("mongodb");
 const { readFileSync } = require("fs");
-const { Server } = require("socket.io");
-const http = require("http");
+const Server = require("socket.io-client");
+
 require("dotenv").config();
-const server = http.createServer();
+const io = Server(service_config.SOCKET_PORT);
 
 const QUEUE_TASK_TYPE = {
   SCRAPING: "web_scraping",
@@ -15,7 +15,7 @@ const QUEUE_TASK_TYPE = {
 
 let mongoClient;
 let db;
-let io;
+
 // mongodb connectivity
 async function mongoConnect() {
   if (!mongoClient) {
@@ -26,8 +26,7 @@ async function mongoConnect() {
   return db;
 }
 // connectivity for socket.io
-async function initializeSocket(server) {
-  io = new Server(server, { cors: { origin: "*" } });
+async function initializeSocket() {
   io.on("connection", (socket) => {
     console.log("Client connected");
     socket.on("disconnect", () => console.log("Client disconnected"));
@@ -247,12 +246,10 @@ let actions = new Map([
   ],
 ]);
 
-initializeSocket(server);
-// listen socket.io on the port
-console.log(`Socket.io server running on port ${service_config.SOCKET_PORT}`);
+initializeSocket();
 // main function
 (async () => {
-  const [, , action, ...args] = process.argv;
+  const [action, ...args] = process.argv;
   if (action) {
     try {
       await actions.get(action)(args);
